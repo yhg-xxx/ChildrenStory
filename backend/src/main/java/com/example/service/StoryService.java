@@ -1,0 +1,17 @@
+package com.example.service;
+
+import reactor.core.publisher.Flux;
+
+/**
+ * 故事服务接口
+ */
+public interface StoryService {
+    
+    /**
+     * 流式生成故事
+     * @param keywords 故事关键词
+     * @param chatId 会话ID
+     * @return 故事内容的流式输出
+     */
+    Flux<String> generateStoryStream(String keywords, String chatId);
+}
