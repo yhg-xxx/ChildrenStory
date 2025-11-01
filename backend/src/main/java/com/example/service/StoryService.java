@@ -14,4 +14,13 @@ public interface StoryService {
      * @return 故事内容的流式输出
      */
     Flux<String> generateStoryStream(String keywords, String chatId);
+    
+    /**
+     * 为指定故事生成插图并返回图片URL
+     * @param storyId 故事ID
+     * @return 生成的图片URL，失败返回null
+     */
+    String generateStoryIllustration(String storyId);
+    
+
 }

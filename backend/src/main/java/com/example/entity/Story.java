@@ -18,8 +18,8 @@ import java.time.LocalDateTime;
 @TableName("story")
 public class Story {
     
-    @TableId(type = IdType.AUTO)
-    private Long id;
+    @TableId(type = IdType.INPUT)
+    private String id;
     
     private String title;
     
@@ -28,6 +28,10 @@ public class Story {
     private String summary;
     
     private String content;
+    
+    private String imageUrl; // 故事插图URL
+    
+    private String imagePrompt; // 生成图片使用的提示词
     
     private LocalDateTime createTime;
     
