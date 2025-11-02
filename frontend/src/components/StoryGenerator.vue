@@ -79,8 +79,8 @@
             </el-button>
             <!-- 音频播放器 -->
             <audio 
-              ref="audioElement" 
-              controls 
+              ref="audioElement"
+              controls=""
               v-if="audioUrl"
               style="margin-top: 15px; width: 100%;"
             >

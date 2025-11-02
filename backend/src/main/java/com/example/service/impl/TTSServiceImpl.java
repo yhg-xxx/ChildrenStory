@@ -29,7 +29,15 @@ public class TTSServiceImpl implements TTSService {
 
     @Override
     public String textToSpeech(String text) throws Exception {
-        return textToSpeech(text, "0", null);
+        logger.info("开始语音合成（默认参数），文本长度: {}", text.length());
+        try {
+            String filePath = textToSpeech(text, "0", null);
+            logger.info("语音合成（默认参数）成功");
+            return filePath;
+        } catch (Exception e) {
+            logger.error("语音合成（默认参数）失败: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Override

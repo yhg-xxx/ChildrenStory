@@ -20,8 +20,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+
 
 /**
  * 语音合成控制器
@@ -41,55 +40,6 @@ public class TTSController {
     @Autowired
     private StoryMapper storyMapper;
 
-    /**
-     * 语音合成API接口
-     * @param text 需要合成的文本
-     * @param per 发音人（可选）
-     * @param fileName 输出文件名（可选）
-     * @return 响应结果
-     */
-    @PostMapping("/synthesize")
-    public ResponseEntity<Map<String, Object>> synthesize(
-            @RequestParam String text,
-            @RequestParam(required = false, defaultValue = "0") String per,
-            @RequestParam(required = false) String fileName) {
-        
-        Map<String, Object> result = new HashMap<>();
-        try {
-            String filePath = ttsService.textToSpeech(text, per, fileName);
-            result.put("success", true);
-            result.put("message", "语音合成成功");
-            result.put("filePath", filePath);
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            result.put("success", false);
-            result.put("message", "语音合成失败: " + e.getMessage());
-            return ResponseEntity.badRequest().body(result);
-        }
-    }
-    
-    /**
-     * 简单语音合成接口
-     * @param text 需要合成的文本
-     * @return 响应结果
-     */
-    @PostMapping("/simple-synthesize")
-    public ResponseEntity<Map<String, Object>> simpleSynthesize(
-            @RequestParam String text) {
-        
-        Map<String, Object> result = new HashMap<>();
-        try {
-            String filePath = ttsService.textToSpeech(text);
-            result.put("success", true);
-            result.put("message", "语音合成成功");
-            result.put("filePath", filePath);
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            result.put("success", false);
-            result.put("message", "语音合成失败: " + e.getMessage());
-            return ResponseEntity.badRequest().body(result);
-        }
-    }
     
     /**
      * 故事语音合成接口（非流式）
@@ -121,13 +71,6 @@ public class TTSController {
             String uploadsPath = System.getProperty("user.dir") + "/uploads/";
             File sourceFile = new File(filePath);
             File targetFile = new File(uploadsPath + fileName);
-            
-            // 确保uploads目录存在
-            File uploadsDir = new File(uploadsPath);
-            if (!uploadsDir.exists()) {
-                uploadsDir.mkdirs();
-                logger.info("已创建uploads目录: {}", uploadsPath);
-            }
             
             // 移动文件
             if (sourceFile.renameTo(targetFile)) {
@@ -206,13 +149,8 @@ public class TTSController {
             // 获取输出流
             outputStream = response.getOutputStream();
             
-            // 创建保存音频文件的目录
+            // 使用uploads目录保存音频文件
             String uploadsPath = System.getProperty("user.dir") + "/uploads/";
-            File uploadsDir = new File(uploadsPath);
-            if (!uploadsDir.exists()) {
-                uploadsDir.mkdirs();
-                logger.info("已创建uploads目录: {}", uploadsPath);
-            }
             
             // 同时保存音频文件的输出流
             File targetFile = new File(uploadsPath + fileName);

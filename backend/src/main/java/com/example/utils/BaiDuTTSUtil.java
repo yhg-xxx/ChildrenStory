@@ -7,7 +7,6 @@ import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -24,7 +23,7 @@ public class BaiDuTTSUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(BaiDuTTSUtil.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
-    
+
     /**
      * 音频流回调接口，用于流式传输音频数据
      */
@@ -37,7 +36,7 @@ public class BaiDuTTSUtil {
     // WebSocket连接URL模板
     private static final String WSS_URL = "wss://aip.baidubce.com/ws/2.0/speech/publiccloudspeech/v1/tts?access_token=%s&per=%s";
     
-    // 硬编码的百度AI access_token
+    // 百度AI access_token
     private static final String DEFAULT_ACCESS_TOKEN = "24.7772565614474de6ec94d2e61eabdad8.2592000.1764644537.282335-120616223";
     
     /**
@@ -296,7 +295,7 @@ public class BaiDuTTSUtil {
         }
         
         // 等待合成完成或超时 - 增加超时时间以适应长文本处理
-        // 1000字的文本大约需要60-90秒的处理时间
+        // 1000字的文本大约需要300秒的处理时间
         boolean awaitResult = latch.await(300, TimeUnit.SECONDS);
         if (!awaitResult) {
             logger.warn("合成超时，可能需要更长的处理时间");

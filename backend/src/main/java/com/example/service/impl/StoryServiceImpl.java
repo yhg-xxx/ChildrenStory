@@ -10,7 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -33,7 +34,15 @@ public class StoryServiceImpl implements StoryService {
     
     @Autowired
     private ImageGenerationService imageGenerationService;
-    
+
+    private static final Logger logger = LoggerFactory.getLogger(StoryServiceImpl.class);
+
+    /**
+     * 流式生成故事
+     * @param keywords 故事关键词
+     * @param chatId 会话ID
+     * @return 故事内容的流式输出
+     */
     @Override
     public Flux<String> generateStoryStream(String keywords, String chatId) {
         // 创建提示词，指导AI生成儿童故事
@@ -59,9 +68,7 @@ public class StoryServiceImpl implements StoryService {
                     .stream()
                     .content()
                     // 收集内容并在完成时保存到数据库
-                    .doOnNext(chunk -> {
-                        fullContent.get().append(chunk);
-                    })
+                    .doOnNext(chunk -> fullContent.get().append(chunk))
                     .doFinally(type -> {
                         // 在流结束后异步保存到数据库
                         String completeStory = fullContent.get().toString();
@@ -99,7 +106,7 @@ public class StoryServiceImpl implements StoryService {
                 // 解析AI返回的结果
                 Story story = parseStoryResponse(storyContent, keywords);
                 
-                // 使用已生成的ID（从storyIdRef获取），不再重新生成
+                // 使用已生成的ID
                 String storyId = storyIdRef.get();
                 story.setId(storyId);
                 
@@ -110,14 +117,11 @@ public class StoryServiceImpl implements StoryService {
                 // 保存到数据库
                 storyMapper.insert(story);
                 
-                System.out.println("故事已保存到数据库，ID: " + storyId);
+                logger.info("故事已保存到数据库，ID: {}", storyId);
                 
             } catch (Exception e) {
                 // 记录保存失败的错误，不影响用户体验
-                System.err.println("保存故事到数据库失败: " + e.getMessage());
-                // 可以选择记录更详细的错误信息，但避免直接打印堆栈
-                System.err.println("错误类型: " + e.getClass().getName());
-                // 注意：在实际项目中，应该使用日志框架（如SLF4J）代替System.err
+                logger.error("保存故事到数据库失败: {}", e.getMessage(), e);
             }
         });
     }
@@ -162,14 +166,18 @@ public class StoryServiceImpl implements StoryService {
         
         return story;
     }
-    
+    /**
+     * 为指定故事生成插图并返回图片URL
+     * @param storyId 故事ID
+     * @return 生成的图片URL，失败返回null
+     */
     @Override
     public String generateStoryIllustration(String storyId) {
         try {
             // 查询故事信息
             Story story = getStoryById(storyId);
             if (story == null) {
-                System.err.println("故事ID: " + storyId + " 不存在");
+                logger.error("故事ID: {} 不存在", storyId);
                 return null;
             }
 
@@ -191,26 +199,24 @@ public class StoryServiceImpl implements StoryService {
             // 保存更新
             storyMapper.updateById(story);
 
-            System.out.println("成功为故事ID: " + storyId + " 生成插图: " + imageUrl);
+            logger.info("成功为故事ID: {} 生成插图: {}", storyId, imageUrl);
             return imageUrl;
         } catch (Exception e) {
-            System.err.println("为故事ID: " + storyId + " 生成插图失败: " + e.getMessage());
-            // 可以选择记录更详细的错误信息，但避免直接打印堆栈
-            System.err.println("错误类型: " + e.getClass().getName());
-            // 注意：在实际项目中，应该使用日志框架（如SLF4J）代替System.err
+            logger.error("为故事ID: {} 生成插图失败: {}", storyId, e.getMessage(), e);
             return null;
         }
     }
 
         @Override
-        public Story getStoryById (String storyId){
-            if (storyId == null || storyId.trim().isEmpty()) {
-                return null;
-            }
-            try {
-                return storyMapper.selectById(storyId);
-            } catch (Exception e) {
-                return null;
-            }
+    public Story getStoryById(String storyId) {
+        if (storyId == null || storyId.trim().isEmpty()) {
+            return null;
         }
+        try {
+            return storyMapper.selectById(storyId);
+        } catch (Exception e) {
+            logger.error("查询故事ID: {} 失败: {}", storyId, e.getMessage(), e);
+            return null;
+        }
+    }
 }

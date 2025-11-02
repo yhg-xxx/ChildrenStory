@@ -17,6 +17,9 @@ public class StoryController {
     
     /**
      * 流式生成故事
+     * @param keywords 关键词
+     * @param chatId 对话id
+     * @return 流式生成故事
      */
     @GetMapping(value = "/generate/stream", produces = "text/plain;charset=UTF-8")
     public Flux<String> generateStoryStream(@RequestParam String keywords, @RequestParam String chatId) {
