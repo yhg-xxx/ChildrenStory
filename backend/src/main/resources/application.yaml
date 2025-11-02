@@ -20,6 +20,13 @@ spring:
         options:
           model: deepseek-chat
 
+  servlet:
+    multipart:
+      max-file-size: 20MB     # 单个文件最大20MB
+      max-request-size: 30MB  # 总请求最大30MB（需大于等于max-file-size）
+      enabled: true
+      file-size-threshold: 2MB
+
 
 mybatis-plus:
   type-aliases-package: com.example.entity

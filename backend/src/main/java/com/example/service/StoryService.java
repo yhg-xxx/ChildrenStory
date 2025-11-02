@@ -1,5 +1,6 @@
 package com.example.service;
 
+import com.example.entity.Story;
 import reactor.core.publisher.Flux;
 
 /**
@@ -21,6 +22,13 @@ public interface StoryService {
      * @return 生成的图片URL，失败返回null
      */
     String generateStoryIllustration(String storyId);
+    
+    /**
+     * 根据ID获取故事
+     * @param storyId 故事ID
+     * @return 故事对象，不存在返回null
+     */
+    Story getStoryById(String storyId);
     
 
 }

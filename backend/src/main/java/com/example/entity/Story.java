@@ -33,6 +33,8 @@ public class Story {
     
     private String imagePrompt; // 生成图片使用的提示词
     
+    private String audioUrl; // 故事语音文件URL
+    
     private LocalDateTime createTime;
     
     private LocalDateTime updateTime;

@@ -58,7 +58,7 @@
             </div>
           </div>
           
-          <!-- 获取图片按钮 -->
+          <!-- 获取图片和语音按钮 -->
           <div class="image-action-container">
             <el-button 
               type="primary" 
@@ -68,6 +68,25 @@
             >
               获取故事插图
             </el-button>
+            <el-button 
+              type="primary" 
+              @click="generateAndPlayAudio"
+              :loading="isLoadingAudio"
+              v-if="!isGenerating && storyContent"
+              style="margin-left: 10px;"
+            >
+              {{ audioUrl ? '播放语音' : '生成语音' }}
+            </el-button>
+            <!-- 音频播放器 -->
+            <audio 
+              ref="audioElement" 
+              controls 
+              v-if="audioUrl"
+              style="margin-top: 15px; width: 100%;"
+            >
+              <source :src="audioUrl" type="audio/mpeg">
+              您的浏览器不支持音频播放
+            </audio>
           </div>
         </div>
       </div>
@@ -91,26 +110,220 @@ import { ElMessage } from 'element-plus';
 export default {
   name: 'StoryGenerator',
   data() {
-      return {
-        formData: {
-          keywords: '',
-          chatId: ''
-        },
-        isGenerating: false,
-        storyContent: '',
-        storyImage: '',
-        errorMessage: '',
-        abortController: null,
-        timer: null,
-        isLoadingImage: false,
-        isFirstChunk: true // 标记是否是第一个数据块，用于提取故事ID
-      };
-    },
+    return {
+      formData: {
+        keywords: '',
+        chatId: ''
+      },
+      isGenerating: false,
+      storyContent: '',
+      storyImage: '',
+      errorMessage: '',
+      abortController: null,
+      timer: null,
+      isLoadingImage: false,
+      isLoadingAudio: false,
+      isFirstChunk: true, // 标记是否是第一个数据块，用于提取故事ID
+      audioUrl: '',
+      audioPlayer: null
+    };
+  },
+  
   mounted() {
     // 初始化时可以生成一个唯一的聊天ID，用于标识用户会话
     this.formData.chatId = this.generateChatId();
   },
+  
+  // 组件销毁时清理资源
+  beforeUnmount() {
+    this.cleanupAudio();
+  },
+  
   methods: {
+    // 生成并播放故事语音
+    async generateAndPlayAudio() {
+      // 从sessionStorage获取故事ID
+      const storyId = sessionStorage.getItem('currentStoryId');
+      
+      if (!storyId) {
+        this.showError('无法生成语音：未找到故事ID');
+        return;
+      }
+      
+      if (this.audioUrl && !this.isLoadingAudio) {
+        // 如果已经有音频URL，直接播放
+        const audioElement = this.$refs.audioElement;
+        if (audioElement) {
+          audioElement.play().catch(error => {
+            console.error('播放音频失败:', error);
+            this.showError('播放音频失败，请稍后重试');
+          });
+        }
+        return;
+      }
+      
+      this.isLoadingAudio = true;
+      
+      try {
+        // 清理之前的音频资源
+        this.cleanupAudio();
+        
+        // 创建MediaSource对象
+        const mediaSource = new MediaSource();
+        // 创建音频URL
+        this.audioUrl = URL.createObjectURL(mediaSource);
+        
+        // 监听MediaSource的sourceopen事件
+        mediaSource.addEventListener('sourceopen', async () => {
+          try {
+            // 创建音频轨道 - 使用更通用的MIME类型以提高兼容性
+            const sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+            
+            // 设置sourceBuffer的模式为sequence，确保数据块按顺序添加
+            if (sourceBuffer.mode === 'segments') {
+              sourceBuffer.mode = 'sequence';
+            }
+            
+            // 调用流式语音合成接口
+            console.log('正在为故事ID:', storyId, '生成流式语音');
+            const response = await fetch(`http://localhost:8080/api/tts/story-stream/${storyId}`, {
+              method: 'GET',
+              headers: {
+                'Accept': 'audio/mpeg'
+              },
+              credentials: 'include'
+            });
+            
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            // 确保响应是流
+            if (!response.body) {
+              throw new Error('Response body is not a stream');
+            }
+            
+            // 处理流式响应
+            const reader = response.body.getReader();
+            
+            // 读取并处理流数据
+            let isProcessing = false;
+            const audioQueue = [];
+            let totalBytesReceived = 0;
+            
+            function processQueue() {
+              if (isProcessing || audioQueue.length === 0) return;
+              
+              isProcessing = true;
+              
+              try {
+                if (!sourceBuffer.updating) {
+                  const chunk = audioQueue.shift();
+                  try {
+                    sourceBuffer.appendBuffer(chunk);
+                    totalBytesReceived += chunk.byteLength;
+                    console.log('添加音频数据块，大小:', chunk.byteLength, '字节，累计:', totalBytesReceived, '字节');
+                  } catch (appendError) {
+                    console.error('添加音频数据块失败:', appendError);
+                    // 如果添加失败，尝试清空队列并重新开始
+                    if (mediaSource.readyState === 'open') {
+                      audioQueue.length = 0;
+                    }
+                  }
+                }
+              } finally {
+                isProcessing = false;
+                if (audioQueue.length > 0) {
+                  // 使用setTimeout避免递归调用导致的栈溢出
+                  setTimeout(processQueue, 0);
+                }
+              }
+            }
+            
+            // 监听sourceBuffer的update事件，继续处理队列
+            sourceBuffer.addEventListener('update', () => {
+              processQueue();
+            });
+            
+            // 监听sourceBuffer的error事件
+            sourceBuffer.addEventListener('error', (e) => {
+              console.error('sourceBuffer错误:', e);
+              // 尝试清空队列
+              audioQueue.length = 0;
+            });
+            
+            // 监听sourceBuffer的abort事件
+            sourceBuffer.addEventListener('abort', () => {
+              console.warn('sourceBuffer被中止');
+            });
+            
+            // 自动开始播放音频
+            this.$nextTick(() => {
+              const audioElement = this.$refs.audioElement;
+              if (audioElement) {
+                audioElement.addEventListener('canplaythrough', () => {
+                  audioElement.play().catch(err => {
+                    console.warn('播放失败:', err);
+                    // 忽略自动播放策略限制错误
+                  });
+                });
+              }
+            });
+            
+            ElMessage.success('开始接收语音数据，正在实时播放');
+            
+            // 读取流数据
+            while (true) {
+              const { done, value } = await reader.read();
+              
+              if (done) {
+                console.log('流式数据接收完成，等待缓冲区处理完成');
+                // 等待队列处理完成后标记MediaSource结束
+                const waitForQueueEmpty = () => {
+                  if (audioQueue.length === 0 && !isProcessing) {
+                    if (mediaSource.readyState === 'open') {
+                      console.log('所有音频数据处理完成，标记MediaSource结束');
+                      mediaSource.endOfStream();
+                    }
+                  } else {
+                    setTimeout(waitForQueueEmpty, 100);
+                  }
+                };
+                waitForQueueEmpty();
+                break;
+              }
+              
+              // 将接收到的数据块添加到队列
+              audioQueue.push(value);
+              processQueue();
+            }
+          } catch (streamError) {
+            console.error('流式音频处理错误:', streamError);
+            if (mediaSource.readyState === 'open') {
+              mediaSource.endOfStream('network');
+            }
+          }
+        });
+        
+      } catch (error) {
+        console.error('生成流式语音时出错:', error);
+        this.showError('生成语音失败，请稍后重试');
+      } finally {
+        // 在try块外设置定时器，确保在流处理完成后重置加载状态
+        setTimeout(() => {
+          this.isLoadingAudio = false;
+        }, 100);
+      }
+    },
+    
+    // 清理音频资源
+    cleanupAudio() {
+      if (this.audioUrl) {
+        URL.revokeObjectURL(this.audioUrl);
+        this.audioUrl = '';
+      }
+    },
+    
     // 生成唯一的聊天ID
     generateChatId() {
       return 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -118,6 +331,8 @@ export default {
     
     // 生成故事 - 使用原生 fetch API 处理流式响应
     async generateStory() {
+      // 清理之前的音频资源
+      this.cleanupAudio();
       if (!this.formData.keywords || this.formData.keywords.trim() === '') {
         this.showError('请输入故事关键词');
         return;
@@ -293,6 +508,9 @@ export default {
         this.timer = null;
       }
       
+      // 清理音频资源
+      this.cleanupAudio();
+      
       this.isGenerating = false;
       this.showError('已取消故事生成');
     },
@@ -326,6 +544,15 @@ export default {
       const contentRegex = /【正文】(.*)/s;
       const match = content.match(contentRegex);
       return match ? match[1].trim() : '暂无内容';
+    },
+    
+    // 清除错误信息
+    clearError() {
+      this.errorMessage = '';
+      if (this.timer) {
+        clearTimeout(this.timer);
+        this.timer = null;
+      }
     }
   }
 };

@@ -167,30 +167,30 @@ public class StoryServiceImpl implements StoryService {
     public String generateStoryIllustration(String storyId) {
         try {
             // 查询故事信息
-            Story story = storyMapper.selectById(storyId);
+            Story story = getStoryById(storyId);
             if (story == null) {
                 System.err.println("故事ID: " + storyId + " 不存在");
                 return null;
             }
-            
+
             // 使用故事梗概生成插图
             String storySummary = story.getSummary();
             if (storySummary == null || storySummary.isEmpty()) {
                 storySummary = story.getTitle();
             }
-            
+
             // 调用图片生成服务
             Map<String, String> result = imageGenerationService.generateStoryIllustration(storySummary);
             String imageUrl = result.get("imageUrl");
-            
+
             // 更新故事的图片信息
             story.setImageUrl(imageUrl);
             story.setImagePrompt(result.get("imagePrompt"));
             story.setUpdateTime(LocalDateTime.now());
-            
+
             // 保存更新
             storyMapper.updateById(story);
-            
+
             System.out.println("成功为故事ID: " + storyId + " 生成插图: " + imageUrl);
             return imageUrl;
         } catch (Exception e) {
@@ -202,5 +202,15 @@ public class StoryServiceImpl implements StoryService {
         }
     }
 
-
+        @Override
+        public Story getStoryById (String storyId){
+            if (storyId == null || storyId.trim().isEmpty()) {
+                return null;
+            }
+            try {
+                return storyMapper.selectById(storyId);
+            } catch (Exception e) {
+                return null;
+            }
+        }
 }
