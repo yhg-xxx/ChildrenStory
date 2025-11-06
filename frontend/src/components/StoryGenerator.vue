@@ -462,7 +462,7 @@ export default {
       try {
         // 调用后端API生成图片并获取图片URL
         console.log('正在为故事ID:', storyId, '生成图片');
-        const response = await fetch(`http://localhost:8080/api/story/image/generate/${storyId}`, {
+        const response = await fetch(`http://localhost:8080/api/story/image/${storyId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

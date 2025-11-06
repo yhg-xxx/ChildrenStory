@@ -13,10 +13,12 @@ import reactor.core.scheduler.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 
 import static org.springframework.ai.chat.memory.ChatMemory.CONVERSATION_ID;
 
@@ -105,19 +107,24 @@ public class StoryServiceImpl implements StoryService {
             try {
                 // 解析AI返回的结果
                 Story story = parseStoryResponse(storyContent, keywords);
+                LocalDateTime now = LocalDateTime.now();
                 
-                // 使用已生成的ID
-                String storyId = storyIdRef.get();
-                story.setId(storyId);
-                
-                // 设置创建时间
-                story.setCreateTime(LocalDateTime.now());
-                story.setUpdateTime(LocalDateTime.now());
+                // 使用已生成的ID，更新故事对象
+                story = Story.builder()
+                        .id(storyIdRef.get())
+                        .userId(1L) // 暂时使用默认用户ID，实际应该从会话或参数中获取
+                        .keywords(story.getKeywords())
+                        .title(story.getTitle())
+                        .summary(story.getSummary())
+                        .content(story.getContent())
+                        .createTime(now)
+                        .updateTime(now)
+                        .build();
                 
                 // 保存到数据库
                 storyMapper.insert(story);
                 
-                logger.info("故事已保存到数据库，ID: {}", storyId);
+                logger.info("故事已保存到数据库，ID: {}", storyIdRef.get());
                 
             } catch (Exception e) {
                 // 记录保存失败的错误，不影响用户体验
@@ -132,39 +139,28 @@ public class StoryServiceImpl implements StoryService {
      * 解析AI返回的故事内容
      */
     private Story parseStoryResponse(String response, String keywords) {
-        Story story = new Story();
-        story.setKeywords(keywords);
-        
-        // 使用正则表达式提取标题、梗概和正文
         // 标题提取
         Pattern titlePattern = Pattern.compile("【标题】(.*?)(?=【梗概】|$)", Pattern.DOTALL);
         Matcher titleMatcher = titlePattern.matcher(response);
-        if (titleMatcher.find()) {
-            story.setTitle(titleMatcher.group(1).trim());
-        } else {
-            story.setTitle("AI生成的故事：" + keywords);
-        }
+        String title = titleMatcher.find() ? titleMatcher.group(1).trim() : "AI生成的故事：" + keywords;
         
         // 梗概提取
         Pattern summaryPattern = Pattern.compile("【梗概】(.*?)(?=【正文】|$)", Pattern.DOTALL);
         Matcher summaryMatcher = summaryPattern.matcher(response);
-        if (summaryMatcher.find()) {
-            story.setSummary(summaryMatcher.group(1).trim());
-        } else {
-            story.setSummary("一个关于" + keywords + "的故事。");
-        }
+        String summary = summaryMatcher.find() ? summaryMatcher.group(1).trim() : "一个关于" + keywords + "的故事。";
         
         // 正文提取
         Pattern contentPattern = Pattern.compile("【正文】(.*)", Pattern.DOTALL);
         Matcher contentMatcher = contentPattern.matcher(response);
-        if (contentMatcher.find()) {
-            story.setContent(contentMatcher.group(1).trim());
-        } else {
-            // 如果没有按照格式返回，就使用整个响应作为正文
-            story.setContent(response.trim());
-        }
+        String content = contentMatcher.find() ? contentMatcher.group(1).trim() : response.trim();
         
-        return story;
+        // 使用Builder模式创建Story对象
+        return Story.builder()
+                .keywords(keywords)
+                .title(title)
+                .summary(summary)
+                .content(content)
+                .build();
     }
     /**
      * 为指定故事生成插图并返回图片URL
@@ -191,10 +187,20 @@ public class StoryServiceImpl implements StoryService {
             Map<String, String> result = imageGenerationService.generateStoryIllustration(storySummary);
             String imageUrl = result.get("imageUrl");
 
-            // 更新故事的图片信息
-            story.setImageUrl(imageUrl);
-            story.setImagePrompt(result.get("imagePrompt"));
-            story.setUpdateTime(LocalDateTime.now());
+            // 更新故事的图片信息，使用Builder模式
+            story = Story.builder()
+                    .id(story.getId())
+                    .keywords(story.getKeywords())
+                    .title(story.getTitle())
+                    .summary(story.getSummary())
+                    .content(story.getContent())
+                    .userId(story.getUserId())
+                    .imageUrl(imageUrl)
+                    .imagePrompt(result.get("imagePrompt"))
+                    .audioUrl(story.getAudioUrl())
+                    .createTime(story.getCreateTime())
+                    .updateTime(LocalDateTime.now())
+                    .build();
 
             // 保存更新
             storyMapper.updateById(story);
@@ -217,6 +223,55 @@ public class StoryServiceImpl implements StoryService {
         } catch (Exception e) {
             logger.error("查询故事ID: {} 失败: {}", storyId, e.getMessage(), e);
             return null;
+        }
+    }
+    
+    /**
+     * 根据用户ID和关键词查询故事
+     * @param userId 用户ID（必填）
+     * @param keyword 关键词（可选，用于标题模糊匹配）
+     * @return 符合条件的故事列表
+     */
+    @Override
+    public List<Story> getStoriesByUserIdAndKeyword(Long userId, String keyword) {
+        try {
+            QueryWrapper<Story> queryWrapper = new QueryWrapper<>();
+            
+            // 必传参数：用户ID必须匹配
+            if (userId == null || userId <= 0) {
+                logger.warn("查询故事时用户ID无效: {}", userId);
+                return List.of(); // 返回空列表
+            }
+            queryWrapper.eq("user_id", userId);
+            
+            // 可选参数：如果有关键词，则进行标题模糊匹配
+            if (keyword != null && !keyword.trim().isEmpty()) {
+                queryWrapper.like("title", keyword.trim());
+            }
+            
+            // 按创建时间倒序排列，最新的在前面
+            queryWrapper.orderByDesc("create_time");
+            
+            List<Story> stories = storyMapper.selectList(queryWrapper);
+            logger.info("查询到 {} 个符合条件的故事", stories.size());
+            return stories;
+        } catch (Exception e) {
+            logger.error("查询故事失败: 用户ID={}, 关键词={}, 错误信息: {}", 
+                    userId, keyword, e.getMessage(), e);
+            return List.of(); // 异常情况下返回空列表
+        }
+    }
+    
+    @Override
+    public boolean deleteStoryById(String storyId) {
+        try {
+            // 使用MyBatis Plus的deleteById方法删除故事
+            int result = storyMapper.deleteById(storyId);
+            // 如果影响行数大于0，表示删除成功
+            return result > 0;
+        } catch (Exception e) {
+            logger.error("删除故事失败，故事ID: {}", storyId, e);
+            return false;
         }
     }
 }

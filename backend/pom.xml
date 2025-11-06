@@ -72,18 +72,7 @@
             <scope>runtime</scope>
             <version>5.1.47</version>
         </dependency>
-        <!--slf4j依赖-->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>1.7.32</version>
-        </dependency>
-        <!-- logback 依赖 -->
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>1.5.13</version>
-        </dependency>
+        <!-- 日志依赖由Spring Boot自动管理，移除显式声明以避免冲突 -->
 
         <!--hutool-->
         <dependency>

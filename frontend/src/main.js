@@ -7,8 +7,11 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import App from './App.vue'
 import router from './router'
 
+// 定义全局基础URL常量
+export const BASE_URL = 'http://localhost:8080';
+
 // 全局配置 axios
-axios.defaults.baseURL = 'http://localhost:8080';
+axios.defaults.baseURL = BASE_URL;
 // 全局配置 axios 携带 Cookie
 axios.defaults.withCredentials = true;
 
@@ -20,6 +23,7 @@ app.use(router)
 
 // 注册全局属性
 app.config.globalProperties.$axios = axios;
+app.config.globalProperties.$baseUrl = BASE_URL;
 
 // 注册图标组件
 for(const [key, component] of Object.entries(ElementPlusIconsVue)) {
