@@ -17,10 +17,7 @@
           </ul>
         </nav>
         <div class="header-actions">
-          <button class="login-btn" @click="checkLoginStatus">
-            <span class="btn-icon">🔑</span>
-            登录
-          </button>
+          <!-- 登录按钮已移除 -->
         </div>
         <div class="mobile-menu-toggle" @click="toggleMobileMenu">
           <span></span>
@@ -35,7 +32,6 @@
           <li><a href="#features" @click="closeMobileMenu">功能特点</a></li>
           <li><a href="#about" @click="closeMobileMenu">关于我们</a></li>
           <li><a href="#contact" @click="closeMobileMenu">联系我们</a></li>
-          <li><button @click="closeMobileMenu; checkLoginStatus()">登录</button></li>
         </ul>
       </div>
     </header>
@@ -54,7 +50,7 @@
             <span class="title-word">童话</span>
             <span class="title-word">王国</span>
           </h1>
-          <p class="subtitle">探索未至之境</p>
+          <p class="subtitle">开启童话创作之旅</p>
           <p class="description">集故事生成、插图创作、语音合成于一体<br/>为您的孩子打造专属童话故事体验</p>
           <div class="action-buttons">
               <button class="primary-btn" @click="checkLoginStatus">
@@ -123,34 +119,34 @@
           <div class="footer-logo">童话王国</div>
           <p class="footer-description">为孩子们创造美好的童话世界</p>
           <div class="social-links">
-            <a href="#" class="social-link">微</a>
-            <a href="#" class="social-link">Q</a>
-            <a href="#" class="social-link">抖</a>
+            <span class="social-link">微</span>
+            <span class="social-link">Q</span>
+            <span class="social-link">抖</span>
           </div>
         </div>
         <div class="footer-links">
           <div class="link-group">
             <h4>产品</h4>
             <ul>
-              <li><a href="#">故事生成</a></li>
-              <li><a href="#">插图创作</a></li>
-              <li><a href="#">语音合成</a></li>
+              <li><span>故事生成</span></li>
+              <li><span>插图创作</span></li>
+              <li><span>语音合成</span></li>
             </ul>
           </div>
           <div class="link-group">
             <h4>关于我们</h4>
             <ul>
-              <li><a href="#">公司介绍</a></li>
-              <li><a href="#">联系我们</a></li>
-              <li><a href="#">加入我们</a></li>
+              <li><span>公司介绍</span></li>
+              <li><span>联系我们</span></li>
+              <li><span>加入我们</span></li>
             </ul>
           </div>
           <div class="link-group">
             <h4>法律</h4>
             <ul>
-              <li><a href="#">隐私政策</a></li>
-              <li><a href="#">用户协议</a></li>
-              <li><a href="#">版权声明</a></li>
+              <li><span>隐私政策</span></li>
+              <li><span>用户协议</span></li>
+              <li><span>版权声明</span></li>
             </ul>
           </div>
         </div>
@@ -357,28 +353,7 @@ export default {
   width: 100%;
 }
 
-.login-btn {
-  display: flex;
-  align-items: center;
-  background-color: #1976d2;
-  color: white;
-  padding: 10px 24px;
-  border-radius: 50px;
-  text-decoration: none;
-  font-weight: 500;
-  transition: all 0.3s;
-  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
-}
-
-.login-btn:hover {
-  background-color: #1565c0;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(25, 118, 210, 0.4);
-}
-
-.btn-icon {
-  margin-right: 8px;
-}
+/* 登录按钮样式已移除 */
 
 .mobile-menu-toggle {
   display: none;
@@ -558,17 +533,18 @@ export default {
 .primary-btn {
   display: flex;
   align-items: center;
-  background-color: #1976d2;
-  color: white;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #1976d2;
   padding: 16px 40px;
   border-radius: 50px;
   text-decoration: none;
   font-size: 18px;
   font-weight: 600;
   transition: all 0.3s;
-  box-shadow: 0 6px 20px rgba(25, 118, 210, 0.4);
+  box-shadow: 0 6px 20px rgba(227, 242, 253, 0.4);
   position: relative;
   overflow: hidden;
+  border: 2px solid #bbdefb;
 }
 
 .primary-btn::before {
@@ -587,9 +563,9 @@ export default {
 }
 
 .primary-btn:hover {
-  background-color: #1565c0;
+  background: linear-gradient(135deg, #bbdefb 0%, #90caf9 100%);
   transform: translateY(-3px);
-  box-shadow: 0 10px 25px rgba(25, 118, 210, 0.5);
+  box-shadow: 0 10px 25px rgba(187, 222, 251, 0.5);
 }
 
 .btn-sparkle {
@@ -891,9 +867,11 @@ export default {
   height: 40px;
   background-color: rgba(255, 255, 255, 0.1);
   border-radius: 50%;
-  color: white;
+  color: #bdc3c7;
   text-decoration: none;
   transition: all 0.3s;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .social-link:hover {

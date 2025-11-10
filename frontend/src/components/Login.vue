@@ -522,23 +522,23 @@ export default {
 /* 登录按钮 */
 .login-btn {
   width: 100%;
-  padding: 15px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #1976d2;
+  border: 2px solid #bbdefb;
+  border-radius: 12px;
+  font-size: 18px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
 }
 
 .login-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #bbdefb 0%, #90caf9 100%);
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 6px 16px rgba(187, 222, 251, 0.4);
 }
 
 .login-btn:disabled {

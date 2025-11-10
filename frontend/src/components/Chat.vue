@@ -1,16 +1,19 @@
 <template>
   <div class="story-app">
     <!-- 故事管理侧边栏 -->
-    <aside class="story-sidebar">
+    <aside class="story-sidebar" :class="{ 'collapsed': isSidebarCollapsed }">
       <!-- 侧边栏头部 -->
       <div class="sidebar-header">
         <div class="app-logo">
           <span class="logo-icon">📚</span>
-          <h1>童话王国</h1>
+          <h1 v-show="!isSidebarCollapsed">童话王国</h1>
         </div>
         <button class="new-story-btn" @click="newStory">
           <span class="btn-icon">+</span>
-          <span>新故事</span>
+          <span class="btn-text">新故事</span>
+        </button>
+        <button class="sidebar-toggle-btn" @click="toggleSidebar" :title="isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'">
+          {{ isSidebarCollapsed ? '→' : '←' }}
         </button>
       </div>
 
@@ -76,7 +79,7 @@
     </aside>
 
     <!-- 主内容区域 -->
-    <main class="story-main">
+    <main class="story-main" :class="{ 'input-collapsed': isInputCollapsed }">
       <!-- 顶部导航 -->
       <header class="story-header">
         <h2 class="current-story-title">{{ currentConversation?.title || '创建新故事' }}</h2>
@@ -124,6 +127,10 @@
             </div>
           </div>
 
+          <!-- 输入框切换按钮 -->
+          <button class="input-toggle-btn" @click="toggleInput" :title="isInputCollapsed ? '展开输入框' : '收起输入框'">
+            {{ isInputCollapsed ? '↑' : '↓' }}
+          </button>
 
         </div>
       </header>
@@ -369,7 +376,10 @@ export default {
       mediaSource: null,
       sourceBuffer: null,
       audioQueue: [],
-      isProcessingAudio: false
+      isProcessingAudio: false,
+      // 新增：布局交互相关
+      isSidebarCollapsed: false,
+      isInputCollapsed: false
     };
   },
 
@@ -1599,6 +1609,16 @@ export default {
       if (!event.shiftKey) {
         this.sendMessage();
       }
+    },
+
+    // 新增：切换侧边栏
+    toggleSidebar() {
+      this.isSidebarCollapsed = !this.isSidebarCollapsed;
+    },
+
+    // 新增：切换输入框
+    toggleInput() {
+      this.isInputCollapsed = !this.isInputCollapsed;
     }
   }
 };
@@ -1628,13 +1648,156 @@ export default {
   border-right: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
-  transition: transform 0.3s ease;
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+/* 侧边栏收起状态 */
+.story-sidebar.collapsed {
+  width: 60px;
+}
+
+.story-sidebar.collapsed .sidebar-header {
+  padding: 15px 5px;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1), gap 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-header {
+  transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1), gap 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.story-sidebar.collapsed .app-logo h1,
+.story-sidebar.collapsed .search-container,
+.story-sidebar.collapsed .story-list,
+.story-sidebar.collapsed .user-profile {
+  opacity: 0;
+  transform: translateX(-10px);
+  pointer-events: none;
+}
+
+/* 为内部元素添加平滑过渡效果 */
+.app-logo h1,
+.search-container,
+.story-list,
+.user-profile {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  transform: translateX(0);
+  opacity: 1;
+}
+
+/* 收缩状态下的新故事按钮 - 只显示图标 */
+.story-sidebar.collapsed .new-story-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  margin: 0 auto;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #1976d2;
+  border: 1px solid #bbdefb;
+  font-size: 18px;
+}
+
+/* 新故事按钮文字的过渡效果 */
+.story-sidebar.collapsed .new-story-btn .btn-text {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+.new-story-btn {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.new-story-btn .btn-text {
+  transition: opacity 0.2s ease, width 0.3s ease;
+  opacity: 1;
+  width: auto;
+}
+
+.story-sidebar.collapsed .sidebar-toggle-btn {
+  position: static;
+  margin: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: position 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 优化切换按钮的图标过渡 */
+.sidebar-toggle-btn {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 收缩状态下的logo图标调整 */
+.story-sidebar.collapsed .app-logo {
+  justify-content: center;
+  margin-bottom: 0;
+  gap: 0;
+  transition: gap 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.story-sidebar.collapsed .logo-icon {
+  font-size: 24px;
+  transition: font-size 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-logo {
+  transition: gap 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.logo-icon {
+  transition: font-size 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 侧边栏头部 */
 .sidebar-header {
   padding: 20px;
   border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+}
+
+/* 确保logo和标题在展开状态下布局合理 */
+.app-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0;
+  padding-right: 40px; /* 为切换按钮留出空间 */
+}
+
+/* 侧边栏切换按钮 - 展开状态 */
+.sidebar-toggle-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background-color: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #64748b;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.sidebar-toggle-btn:hover {
+  background-color: #f1f5f9;
+  color: #1976d2;
+  transform: scale(1.05);
 }
 
 .app-logo {
@@ -1657,9 +1820,9 @@ export default {
 .new-story-btn {
   width: 100%;
   padding: 12px 16px;
-  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
-  color: white;
-  border: none;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #1976d2;
+  border: 2px solid #bbdefb;
   border-radius: 10px;
   font-size: 16px;
   font-weight: 600;
@@ -1672,13 +1835,14 @@ export default {
 }
 
 .new-story-btn:hover {
+  background: linear-gradient(135deg, #bbdefb 0%, #90caf9 100%);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+  box-shadow: 0 4px 12px rgba(187, 222, 251, 0.4);
 }
 
 /* 搜索容器 */
 .search-container {
-  padding: 0 20px 16px;
+  padding: 16px 20px 16px;
 }
 
 .search-box {
@@ -1914,6 +2078,19 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+/* 输入框收起状态 */
+.story-main.input-collapsed {
+  margin-bottom: 0;
+}
+
+.story-main.input-collapsed .story-input-area {
+  height: 0;
+  padding: 0;
+  overflow: hidden;
+  border: none;
 }
 
 /* 故事头部 */
@@ -1924,6 +2101,29 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* 输入框切换按钮 */
+.input-toggle-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background-color: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #64748b;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+}
+
+.input-toggle-btn:hover {
+  background-color: #f1f5f9;
+  color: #1976d2;
+  transform: scale(1.05);
 }
 
 .current-story-title {
@@ -2256,9 +2456,9 @@ export default {
 
 .generate-btn {
   padding: 16px 32px;
-  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
-  color: white;
-  border: none;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #1976d2;
+  border: 2px solid #bbdefb;
   border-radius: 12px;
   font-size: 16px;
   font-weight: 600;
@@ -2269,8 +2469,9 @@ export default {
 }
 
 .generate-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #bbdefb 0%, #90caf9 100%);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+  box-shadow: 0 6px 16px rgba(187, 222, 251, 0.4);
 }
 
 .generate-btn:disabled {
