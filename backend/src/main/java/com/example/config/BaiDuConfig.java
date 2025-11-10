@@ -13,14 +13,14 @@ import org.springframework.context.annotation.Configuration;
 public class BaiDuConfig {
 
     /**
-     * 文心一格图片生成API基础URL
+     * 文心一格图片生成API极速版URL
      */
-    private String textToImageUrl = "https://aip.baidubce.com/rpc/2.0/wenxin/v1/basic/textToImage";
+    private String textToImageUrl = "https://aip.baidubce.com/rpc/2.0/wenxin/v1/extreme/textToImage";
     
     /**
-     * 图片生成结果查询API基础URL
+     * 图片生成结果查询API极速版URL
      */
-    private String getImgUrl = "https://aip.baidubce.com/rpc/2.0/wenxin/v1/basic/getImg";
+    private String getImgUrl = "https://aip.baidubce.com/rpc/2.0/wenxin/v1/extreme/getImg";
     
     /**
      * 访问令牌

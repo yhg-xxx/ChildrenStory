@@ -87,12 +87,19 @@
             <button
                 class="header-action"
                 @click="fetchStoryImage"
-                :disabled="isLoadingImage || currentStoryMessage.imageUrl"
-                v-if="!isGenerating"
-                :title="isLoadingImage ? '生成中...' : '生成插图'"
+                :disabled="isLoadingImage"
+                :title="isLoadingImage ? '生成中...' : (currentStoryMessage.imageUrl ? '重新生成插图' : '生成插图')"
             >
               🖼️
             </button>
+            
+            <!-- 图片生成进度条 -->
+            <div v-if="showProgressBar" class="progress-bar-container">
+              <div class="progress-bar">
+                <div class="progress-fill" :style="{ width: progressValue + '%' }"></div>
+              </div>
+              <span class="progress-text">{{ progressValue }}%</span>
+            </div>
 
             <!-- 生成语音按钮 -->
             <button
@@ -117,8 +124,7 @@
             </div>
           </div>
 
-          <button class="header-action" title="分享故事">📤</button>
-          <button class="header-action" title="清空">🧹</button>
+
         </div>
       </header>
 
@@ -258,6 +264,65 @@
   </div>
 </template>
 
+<style scoped>
+/* 进度条样式 */
+.progress-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 10px;
+  min-width: 150px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background-color: #e0e0e0;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #8BC34A);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.progress-text {
+  font-size: 12px;
+  color: #666;
+  min-width: 35px;
+  text-align: right;
+}
+
+/* 确保进度条在移动设备上也能正常显示 */
+@media (max-width: 768px) {
+  .progress-bar-container {
+    min-width: 120px;
+    margin-left: 5px;
+  }
+}
+</style>
+
 <script>
 import { ElMessage } from 'element-plus';
 import { BASE_URL } from '../main.js'
@@ -290,6 +355,10 @@ export default {
       isFirstChunk: true,
       audioUrl: '',
       audioPlayer: null,
+      // 新增：图片生成进度条相关
+      showProgressBar: false,
+      progressValue: 0,
+      progressTimer: null,
       formData: {
         keywords: '',
         chatId: ''
@@ -1023,6 +1092,44 @@ export default {
       }
     },
 
+    // 初始化进度条
+    initProgressBar() {
+      // 清除之前的定时器
+      if (this.progressTimer) {
+        clearInterval(this.progressTimer);
+      }
+      
+      // 重置进度条
+      this.showProgressBar = true;
+      this.progressValue = 0;
+      
+      // 设置定时器模拟进度增长
+      this.progressTimer = setInterval(() => {
+        // 每次增加一个随机值（1-5%），但不超过90%
+        const increment = Math.floor(Math.random() * 5) + 1;
+        if (this.progressValue < 90) {
+          this.progressValue = Math.min(90, this.progressValue + increment);
+        }
+      }, 300);
+    },
+    
+    // 完成进度条
+    completeProgressBar() {
+      // 清除定时器
+      if (this.progressTimer) {
+        clearInterval(this.progressTimer);
+        this.progressTimer = null;
+      }
+      
+      // 快速将进度设置为100%
+      this.progressValue = 100;
+      
+      // 延迟隐藏进度条
+      setTimeout(() => {
+        this.showProgressBar = false;
+      }, 500);
+    },
+
     // 手动获取故事图片
     async fetchStoryImage(event) {
       // 防止事件对象被错误地作为storyId
@@ -1041,6 +1148,8 @@ export default {
       }
 
       this.isLoadingImage = true;
+      // 初始化进度条
+      this.initProgressBar();
 
       try {
         // 调用后端API生成图片并获取图片URL
@@ -1061,6 +1170,9 @@ export default {
         console.log('图片生成结果:', result);
 
         if (result.success) {
+          // 完成进度条
+          this.completeProgressBar();
+          
           // 直接从响应中获取图片URL
           if (result.data && result.data.imageUrl) {
             // 找到对应的故事消息并更新图片URL
@@ -1080,6 +1192,14 @@ export default {
         console.error('获取故事图片时出错:', error);
       } finally {
         this.isLoadingImage = false;
+        // 如果出错，隐藏进度条
+        if (this.progressValue < 100) {
+          if (this.progressTimer) {
+            clearInterval(this.progressTimer);
+            this.progressTimer = null;
+          }
+          this.showProgressBar = false;
+        }
       }
     },
 
@@ -1101,6 +1221,8 @@ export default {
       }
 
       this.isLoadingImage = true;
+      // 初始化进度条
+      this.initProgressBar();
 
       try {
         // 调用后端API重新生成图片，添加regenerate参数
@@ -1121,6 +1243,9 @@ export default {
         console.log('图片重新生成结果:', result);
 
         if (result.success) {
+          // 完成进度条
+          this.completeProgressBar();
+          
           // 直接从响应中获取图片URL
           if (result.data && result.data.imageUrl) {
             // 找到对应的故事消息并更新图片URL
@@ -1140,6 +1265,14 @@ export default {
         console.error('重新生成故事图片时出错:', error);
       } finally {
         this.isLoadingImage = false;
+        // 如果出错，隐藏进度条
+        if (this.progressValue < 100) {
+          if (this.progressTimer) {
+            clearInterval(this.progressTimer);
+            this.progressTimer = null;
+          }
+          this.showProgressBar = false;
+        }
       }
     },
 
@@ -1980,9 +2113,10 @@ export default {
 .story-card-image {
   width: 100%;
   height: auto;
-  max-height: 400px;
-  object-fit: cover;
+  max-height: 600px; /* 增加最大高度限制 */
+  object-fit: contain; /* 改为contain以完整显示图片 */
   display: block;
+  background-color: #f5f5f5; /* 添加背景色避免空白区域过于突兀 */
 }
 
 .image-overlay {

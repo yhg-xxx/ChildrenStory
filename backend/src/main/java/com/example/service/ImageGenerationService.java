@@ -36,12 +36,17 @@ public class ImageGenerationService {
      * @throws Exception 生成图片时的异常
      */
     public String generateImage(String prompt) throws Exception {
-        // 构建图片生成请求参数
+        // 解析分辨率参数
+        String[] resolutionParts = baiDuConfig.getDefaultResolution().split("\\*");
+        int width = Integer.parseInt(resolutionParts[0]);
+        int height = Integer.parseInt(resolutionParts[1]);
+        
+        // 构建图片生成请求参数（极速版API格式）
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("text", prompt);
-        requestBody.put("style", baiDuConfig.getDefaultStyle());
-        requestBody.put("resolution", baiDuConfig.getDefaultResolution());
-        requestBody.put("num", baiDuConfig.getDefaultNum());
+        requestBody.put("prompt", prompt);
+        requestBody.put("width", width);
+        requestBody.put("height", height);
+        requestBody.put("image_num", baiDuConfig.getDefaultNum());
         
         // 构建请求头
         HttpHeaders headers = new HttpHeaders();
@@ -57,10 +62,14 @@ public class ImageGenerationService {
         // 解析响应获取taskId
         JsonNode rootNode = objectMapper.readTree(response);
         JsonNode dataNode = rootNode.path("data");
-        String taskId = dataNode.path("primaryTaskId").asText();
+        String taskId = dataNode.path("task_id").asText();
         
         if (taskId == null || taskId.isEmpty()) {
-            throw new Exception("获取图片生成任务ID失败: " + response);
+            // 尝试获取primary_task_id
+            taskId = dataNode.path("primary_task_id").asText();
+            if (taskId == null || taskId.isEmpty()) {
+                throw new Exception("获取图片生成任务ID失败: " + response);
+            }
         }
         
         // 查询图片生成结果
@@ -86,9 +95,9 @@ public class ImageGenerationService {
         String getImgUrl = baiDuConfig.getGetImgUrl() + "?access_token=" + baiDuConfig.getAccessToken();
         
         while (System.currentTimeMillis() - startTime < maxWaitTime) {
-            // 构建请求体
+            // 构建请求体（极速版API格式）
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("taskId", taskId);
+            requestBody.put("task_id", taskId);
             
             // 发送请求
             HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(requestBody, headers);
@@ -98,29 +107,36 @@ public class ImageGenerationService {
             JsonNode rootNode = objectMapper.readTree(response);
             JsonNode dataNode = rootNode.path("data");
             
-            // 检查状态
-            int status = dataNode.path("status").asInt(0);
-            if (status == 1) {
-                // 任务已完成，获取图片URL
-                String imageUrl = dataNode.path("img").asText();
-                if (imageUrl != null && !imageUrl.isEmpty()) {
-                    // 清理URL中的空格和引号
-                    imageUrl = imageUrl.trim().replaceAll("^\"|\"$|^`|`$", "");
-                    return imageUrl;
-                }
-                
-                // 尝试从imgUrls数组获取
-                JsonNode imgUrlsNode = dataNode.path("imgUrls");
-                if (imgUrlsNode.isArray() && !imgUrlsNode.isEmpty()) {
-                    imageUrl = imgUrlsNode.get(0).path("image").asText();
-                    if (imageUrl != null && !imageUrl.isEmpty()) {
-                        // 清理URL中的空格和引号
-                        imageUrl = imageUrl.trim().replaceAll("^\"|\"$|^`|`$", "");
-                        return imageUrl;
+            // 检查任务状态（极速版API格式）
+            String taskStatus = dataNode.path("task_status").asText();
+            if ("SUCCESS".equals(taskStatus)) {
+                // 任务已完成，获取子任务列表
+                JsonNode subTaskResultList = dataNode.path("sub_task_result_list");
+                if (subTaskResultList.isArray() && !subTaskResultList.isEmpty()) {
+                    // 获取第一个子任务的结果
+                    JsonNode subTask = subTaskResultList.get(0);
+                    
+                    // 检查子任务状态
+                    String subTaskStatus = subTask.path("sub_task_status").asText();
+                    if ("SUCCESS".equals(subTaskStatus)) {
+                        // 获取最终图片列表
+                        JsonNode finalImageList = subTask.path("final_image_list");
+                        if (finalImageList.isArray() && !finalImageList.isEmpty()) {
+                            // 获取第一张图片的URL
+                            String imageUrl = finalImageList.get(0).path("img_url").asText();
+                            if (imageUrl != null && !imageUrl.isEmpty()) {
+                                // 清理URL中的空格和引号
+                                imageUrl = imageUrl.trim().replaceAll("^\"|\"$|^`|`$", "");
+                                return imageUrl;
+                            }
+                        }
                     }
                 }
                 
                 throw new Exception("获取图片URL失败，响应中未包含有效的图片链接");
+            } else if ("FAILED".equals(taskStatus)) {
+                // 任务失败
+                throw new Exception("图片生成失败: " + response);
             }
             
             // 等待一段时间后再次查询
