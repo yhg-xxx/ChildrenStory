@@ -127,6 +127,16 @@
             </div>
           </div>
 
+          <!-- 主题设置按钮 -->
+          <button class="theme-settings-btn" @click="showThemeDialog = true" title="故事主题设置">
+            ⚙️
+          </button>
+          
+          <!-- 拼音按钮 -->
+          <button class="header-action" @click="togglePinyin" :title="showPinyin ? '隐藏拼音' : '显示拼音'">
+            🔤
+          </button>
+
           <!-- 输入框切换按钮 -->
           <button class="input-toggle-btn" @click="toggleInput" :title="isInputCollapsed ? '展开输入框' : '收起输入框'">
             {{ isInputCollapsed ? '↑' : '↓' }}
@@ -186,7 +196,8 @@
               <div class="story-card-content">
                 <!-- 故事标题 -->
                 <h2 class="story-card-title">
-                  {{ msg.title || extractTitle(msg.content) }}
+                  <span v-if="!showPinyin">{{ msg.title || extractTitle(msg.content) }}</span>
+                  <span v-else v-html="convertToPinyin(msg.title || extractTitle(msg.content))"></span>
                   <span v-if="msg.streaming" class="generating-indicator">生成中...</span>
                 </h2>
 
@@ -212,16 +223,18 @@
                   <!-- 故事梗概 -->
                   <div class="story-outline-section">
                     <h3 class="section-title">故事梗概</h3>
-                    <p class="outline-text">{{ msg.outline || extractOutline(msg.content) }}</p>
+                    <p class="outline-text" v-if="!showPinyin">{{ msg.outline || extractOutline(msg.content) }}</p>
+                    <p class="outline-text" v-else v-html="convertToPinyin(msg.outline || extractOutline(msg.content))"></p>
                   </div>
 
                   <!-- 故事正文 -->
                   <div class="story-body-section">
                     <h3 class="section-title">故事内容</h3>
                     <div class="story-text">
-                      <p v-for="(paragraph, pIndex) in (msg.body || extractContent(msg.content)).split('\n\n')" :key="pIndex">
-                        {{ paragraph }}
-                      </p>
+                      <div v-for="(paragraph, pIndex) in (msg.body || extractContent(msg.content)).split('\n\n')" :key="pIndex">
+                        <p v-if="!showPinyin">{{ paragraph }}</p>
+                        <p v-else v-html="convertToPinyin(paragraph)"></p>
+                      </div>
                     </div>
                     <!-- 流式生成指示器 -->
                     <div v-if="msg.streaming" class="streaming-indicator">
@@ -268,6 +281,87 @@
         </div>
       </footer>
     </main>
+
+    <!-- 主题选择弹窗 -->
+    <div v-if="showThemeDialog" class="theme-dialog-overlay" @click="showThemeDialog = false">
+      <div class="theme-dialog" @click.stop>
+        <div class="theme-dialog-header">
+          <h3>故事主题设置</h3>
+          <button class="dialog-close-btn" @click="showThemeDialog = false">×</button>
+        </div>
+        
+        <div class="theme-dialog-content">
+          <!-- 主题模式选择 -->
+          <div class="theme-mode-section">
+            <h4>选择模式</h4>
+            <div class="mode-options">
+              <label class="mode-option">
+                <input type="radio" v-model="themeMode" value="single" />
+                <span>单选</span>
+              </label>
+              <label class="mode-option">
+                <input type="radio" v-model="themeMode" value="multiple" />
+                <span>多选</span>
+              </label>
+              <label class="mode-option">
+                <input type="radio" v-model="themeMode" value="custom" />
+                <span>自定义</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 主题选择区域 -->
+          <div class="theme-selection-section" v-if="themeMode !== 'custom'">
+            <h4>选择主题</h4>
+            <div class="theme-grid">
+              <div 
+                v-for="theme in availableThemes" 
+                :key="theme.id"
+                class="theme-card"
+                :class="{ 
+                  'selected': selectedThemes.includes(theme.id),
+                  'disabled': themeMode === 'single' && selectedThemes.length > 0 && !selectedThemes.includes(theme.id)
+                }"
+                @click="toggleTheme(theme.id)"
+              >
+                <div class="theme-icon">{{ getThemeIcon(theme.id) }}</div>
+                <div class="theme-info">
+                  <div class="theme-name">{{ theme.name }}</div>
+                  <div class="theme-description">{{ theme.description }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 自定义主题输入 -->
+          <div class="custom-theme-section" v-if="themeMode === 'custom'">
+            <h4>自定义主题</h4>
+            <textarea 
+              v-model="customTheme" 
+              placeholder="请输入自定义主题，例如：科幻冒险、童话魔法、历史传奇等..."
+              class="custom-theme-input"
+              rows="3"
+            ></textarea>
+          </div>
+
+          <!-- 当前选择显示 -->
+          <div class="current-selection-section">
+            <h4>当前选择</h4>
+            <div class="selected-themes-display">
+              <span v-if="getSelectedThemeText()" class="selected-themes-text">
+                {{ getSelectedThemeText() }}
+              </span>
+              <span v-else class="no-selection">未选择主题</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="theme-dialog-footer">
+          <button class="dialog-btn secondary" @click="resetThemes">重置</button>
+          <button class="dialog-btn primary" @click="saveThemes">保存</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -280,7 +374,63 @@
   margin-left: 10px;
   min-width: 150px;
 }
+/* 特别为包含拼音的段落增加行高 */
+.story-text p:has(.pinyin-char) {
+  line-height: 2.2;
+}
 
+/* 标题中的拼音样式调整 */
+.story-card-title .pinyin-char {
+  height: 50px;
+}
+
+.story-card-title .char {
+  font-size: 28px;
+}
+
+.story-card-title .pinyin {
+  font-size: 12px;
+}
+
+/* 梗概中的拼音样式调整 */
+.outline-text .pinyin-char {
+  height: 38px;
+}
+
+.outline-text .char {
+  font-size: 16px;
+}
+
+.outline-text .pinyin {
+  font-size: 10px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .pinyin-char {
+    height: 36px;
+  }
+
+  .char {
+    font-size: 14px;
+  }
+
+  .pinyin {
+    font-size: 9px;
+  }
+
+  .story-card-title .pinyin-char {
+    height: 42px;
+  }
+
+  .story-card-title .char {
+    font-size: 24px;
+  }
+
+  .story-card-title .pinyin {
+    font-size: 11px;
+  }
+}
 .progress-bar {
   flex: 1;
   height: 6px;
@@ -328,11 +478,42 @@
     margin-left: 5px;
   }
 }
+
+
+/* 拼音样式 - 优化为准确显示在汉字正上方 */
+.pinyin-char {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: center;
+  margin: 0 1px;
+  vertical-align: top;
+  height: 42px; /* 保持固定高度确保布局稳定 */
+}
+
+.char {
+  display: block;
+  font-size: 16px;
+  line-height: 1.2;
+  /* 移除固定top值，通过flex布局自然对齐 */
+}
+
+.pinyin {
+  display: block;
+  font-size: 10px;
+  color: #666;
+  line-height: 1;
+  margin-bottom: 2px; /* 微调拼音与汉字间距 */
+}
+
 </style>
 
 <script>
 import { ElMessage } from 'element-plus';
 import { BASE_URL } from '../main.js'
+import { pinyin } from 'pinyin-pro';
 
 export default {
   name: 'Chat',
@@ -379,7 +560,24 @@ export default {
       isProcessingAudio: false,
       // 新增：布局交互相关
       isSidebarCollapsed: false,
-      isInputCollapsed: false
+      isInputCollapsed: false,
+      // 新增：主题选择相关数据
+      showThemeDialog: false,
+      selectedThemes: [],
+      customTheme: '',
+      themeMode: 'single', // single, multiple, custom
+      // 新增：拼音相关数据
+      showPinyin: false,
+      availableThemes: [
+        { id: 'adventure', name: '冒险', description: '充满刺激和探索的故事' },
+        { id: 'fantasy', name: '奇幻', description: '魔法和神秘的世界' },
+        { id: 'friendship', name: '友谊', description: '关于友情和合作的故事' },
+        { id: 'animal', name: '动物', description: '可爱动物们的故事' },
+        { id: 'science', name: '科普', description: '知识和探索的故事' },
+        { id: 'moral', name: '品德', description: '培养良好品德的故事' },
+        { id: 'family', name: '家庭', description: '温馨的家庭故事' },
+        { id: 'nature', name: '自然', description: '大自然和环境保护的故事' }
+      ]
     };
   },
 
@@ -411,6 +609,8 @@ export default {
     this.getCurrentUserInfo();
     // 初始化时生成唯一的聊天ID，用于标识用户会话
     this.formData.chatId = this.generateChatId();
+    // 加载主题设置
+    this.loadThemesFromLocalStorage();
 
     // 监听故事列表容器的滚动事件
     this.$nextTick(() => {
@@ -440,6 +640,68 @@ export default {
   },
 
   methods: {
+    // 切换拼音显示状态
+    togglePinyin() {
+      this.showPinyin = !this.showPinyin;
+    },
+
+// 将中文文本转换为带拼音的HTML
+    convertToPinyin(text) {
+      if (!text) return '';
+
+      let result = '';
+
+      // 遍历文本中的每个字符
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+
+        // 检查是否为中文字符
+        if (/[\u4e00-\u9fa5]/.test(char)) {
+          // 使用pinyin-pro获取拼音，保留声调
+          const charPinyin = pinyin(char, {
+            toneType: 'symbol', // 使用数字声调
+            type: 'array'
+          })[0] || '';
+
+          // 添加额外的间距控制
+          const width = charPinyin.length > 3 ? '1.5em' : '1em';
+          
+          // 为每个字创建拼音span元素
+          result += `<span class="pinyin-char" style="width: ${width};">
+                  <span class="pinyin">${charPinyin}</span>
+                  <span class="char">${char}</span>
+                </span>`;
+        } else {
+          // 非中文字符直接添加
+          result += char;
+        }
+      }
+
+      return result;
+    },
+    
+    // 为中文词添加拼音包装
+    wrapWithPinyin(word) {
+      // 使用pinyin-pro获取拼音，保留声调
+      const pinyinResult = pinyin(word, {
+        toneType: 'mark', // 使用声调符号
+        type: 'array' // 返回数组格式
+      });
+      
+      let result = '';
+      // 为每个字和对应的拼音创建span元素
+      for (let i = 0; i < word.length; i++) {
+        const char = word[i];
+        const charPinyin = pinyinResult[i] || '';
+        result += `<span class="pinyin-char">
+                    <span class="char">${char}</span>
+                    <span class="pinyin">${charPinyin}</span>
+                  </span>`;
+      }
+      
+      return result;
+    },
+    
     // 获取当前登录用户信息
     async getCurrentUserInfo() {
       try {
@@ -740,13 +1002,14 @@ export default {
     },
 
     // 用户登出
-    async logout() {
+    async logout()
+    {
       try {
         // 停止当前音频
         this.stopAllAudio();
 
         // 调用后端登出接口
-        const response = await fetch(`${BASE_URL}/api/users/logout`, {
+        await fetch(`${BASE_URL}/api/users/logout`, {
           method: 'POST',
           credentials: 'include' // 包含cookie以维护Session
         });
@@ -761,6 +1024,108 @@ export default {
         // 即使出错也清除本地数据并重定向
         localStorage.removeItem('username');
         this.$router.push('/login');
+      }
+    }
+,
+
+    // 主题选择相关方法
+    
+    // 切换主题选择
+    toggleTheme(themeId) {
+      if (this.themeMode === 'single') {
+        // 单选模式：直接替换当前选择
+        this.selectedThemes = [themeId];
+      } else if (this.themeMode === 'multiple') {
+        // 多选模式：切换选择状态
+        const index = this.selectedThemes.indexOf(themeId);
+        if (index > -1) {
+          this.selectedThemes.splice(index, 1);
+        } else {
+          this.selectedThemes.push(themeId);
+        }
+      }
+    },
+
+    // 获取主题图标
+    getThemeIcon(themeId) {
+      const icons = {
+        'adventure': '🏔️',
+        'fantasy': '🧙',
+        'science': '🔬',
+        'animal': '🐾',
+        'fairy': '🧚',
+        'history': '🏛️',
+        'mystery': '🔍',
+        'friendship': '🤝'
+      };
+      return icons[themeId] || '📖';
+    },
+
+    // 获取当前选择的主题文本
+    getSelectedThemeText() {
+      if (this.themeMode === 'custom' && this.customTheme.trim()) {
+        return `自定义主题：${this.customTheme.trim()}`;
+      } else if (this.selectedThemes.length > 0) {
+        const selectedThemeNames = this.selectedThemes.map(themeId => {
+          const theme = this.availableThemes.find(t => t.id === themeId);
+          return theme ? theme.name : themeId;
+        });
+        return selectedThemeNames.join('、');
+      }
+      return '';
+    },
+
+    // 重置主题选择
+    resetThemes() {
+      this.selectedThemes = [];
+      this.customTheme = '';
+      this.themeMode = 'single';
+    },
+
+    // 保存主题设置
+    saveThemes() {
+      // 验证选择
+      if (this.themeMode === 'custom' && !this.customTheme.trim()) {
+        this.showError('请输入自定义主题');
+        return;
+      } else if (this.themeMode !== 'custom' && this.selectedThemes.length === 0) {
+        this.showError('请至少选择一个主题');
+        return;
+      }
+
+      // 保存到localStorage
+      this.saveThemesToLocalStorage();
+      
+      // 关闭弹窗
+      this.showThemeDialog = false;
+      
+      // 显示成功提示
+      this.showSuccess('主题设置已保存');
+    },
+
+    // 保存主题到localStorage
+    saveThemesToLocalStorage() {
+      const themeSettings = {
+        selectedThemes: this.selectedThemes,
+        customTheme: this.customTheme,
+        themeMode: this.themeMode,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('storyThemeSettings', JSON.stringify(themeSettings));
+    },
+
+    // 从localStorage加载主题设置
+    loadThemesFromLocalStorage() {
+      try {
+        const saved = localStorage.getItem('storyThemeSettings');
+        if (saved) {
+          const themeSettings = JSON.parse(saved);
+          this.selectedThemes = themeSettings.selectedThemes || [];
+          this.customTheme = themeSettings.customTheme || '';
+          this.themeMode = themeSettings.themeMode || 'single';
+        }
+      } catch (error) {
+        console.error('加载主题设置失败:', error);
       }
     },
 
@@ -829,6 +1194,13 @@ export default {
         const params = new URLSearchParams();
         params.append('keywords', keywords.trim());
         params.append('chatId', this.formData.chatId);
+        
+        // 添加主题参数
+        const themeText = this.getSelectedThemeText();
+        if (themeText) {
+          params.append('theme', themeText);
+          console.log('添加主题参数:', themeText);
+        }
 
         console.log('开始请求流式故事生成，关键词:', keywords);
 
@@ -2142,8 +2514,7 @@ export default {
 .story-media-controls {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-right: 8px;
+  gap: 16px;
 }
 
 /* 头部音频播放器 */
@@ -2401,8 +2772,8 @@ export default {
 }
 
 .story-text p {
+  line-height: 1.8;
   margin-bottom: 16px;
-  text-align: justify;
 }
 
 .story-text p:last-child {
@@ -2552,8 +2923,6 @@ export default {
     gap: 16px; /* 增加按钮之间的间距 */
   }
 
-
-
   .header-audio-player {
     min-width: 150px;
   }
@@ -2657,6 +3026,354 @@ export default {
   40% {
     transform: scale(1);
     opacity: 1;
+  }
+}
+
+/* 主题选择功能样式 */
+
+/* 主题设置按钮 */
+.theme-settings-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background-color: #f1f5f9;
+  border-radius: 8px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+}
+
+.theme-settings-btn:hover {
+  background-color: #e2e8f0;
+  transform: translateY(-1px);
+}
+
+/* 主题弹窗遮罩 */
+.theme-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+/* 主题弹窗 */
+.theme-dialog {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+  animation: slideUp 0.3s ease;
+}
+
+/* 弹窗头部 */
+.theme-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.theme-dialog-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+.dialog-close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.dialog-close-btn:hover {
+  background-color: #f1f5f9;
+  color: #dc2626;
+}
+
+/* 弹窗内容 */
+.theme-dialog-content {
+  padding: 24px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* 主题模式选择 */
+.theme-mode-section {
+  margin-bottom: 24px;
+}
+
+.theme-mode-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 12px;
+}
+
+.mode-options {
+  display: flex;
+  gap: 16px;
+}
+
+.mode-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.mode-option:hover {
+  background-color: #f8fafc;
+}
+
+.mode-option input[type="radio"] {
+  margin: 0;
+}
+
+.mode-option span {
+  font-size: 14px;
+  color: #475569;
+}
+
+/* 主题选择区域 */
+.theme-selection-section {
+  margin-bottom: 24px;
+}
+
+.theme-selection-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 12px;
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.theme-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.theme-card:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.theme-card.selected {
+  border-color: #1976d2;
+  background-color: #f0f9ff;
+}
+
+.theme-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.theme-card.disabled:hover {
+  border-color: #e2e8f0;
+  transform: none;
+}
+
+.theme-icon {
+  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  border-radius: 6px;
+}
+
+.theme-info {
+  flex: 1;
+}
+
+.theme-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+
+.theme-description {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+/* 自定义主题区域 */
+.custom-theme-section {
+  margin-bottom: 24px;
+}
+
+.custom-theme-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 12px;
+}
+
+.custom-theme-input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+}
+
+.custom-theme-input:focus {
+  outline: none;
+  border-color: #1976d2;
+}
+
+/* 当前选择显示 */
+.current-selection-section {
+  margin-bottom: 24px;
+}
+
+.current-selection-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 12px;
+}
+
+.selected-themes-display {
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.selected-themes-text {
+  font-size: 14px;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.no-selection {
+  font-size: 14px;
+  color: #64748b;
+  font-style: italic;
+}
+
+/* 弹窗底部 */
+.theme-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.dialog-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dialog-btn.secondary {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.dialog-btn.secondary:hover {
+  background: #e2e8f0;
+}
+
+.dialog-btn.primary {
+  background: #1976d2;
+  color: white;
+}
+
+.dialog-btn.primary:hover {
+  background: #1565c0;
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .theme-dialog {
+    width: 95%;
+    margin: 20px;
+  }
+  
+  .theme-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .mode-options {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .theme-dialog-content {
+    padding: 16px;
+  }
+  
+  .theme-dialog-header {
+    padding: 16px 20px;
+  }
+  
+  .theme-dialog-footer {
+    padding: 16px 20px;
   }
 }
 </style>

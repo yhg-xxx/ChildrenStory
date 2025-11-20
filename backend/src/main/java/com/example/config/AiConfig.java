@@ -32,7 +32,7 @@ public class AiConfig {
     @Bean
     public ChatClient chatClient(ChatClient.Builder chatClientBuilder,ChatMemory chatMemory) {
         return chatClientBuilder
-                .defaultSystem("你是一个专业的儿童故事生成专家。请根据用户提供的关键词，创作一个温馨、有趣、富有教育意义的儿童故事。故事应该简短易懂，语言生动活泼，适合5-10岁的儿童阅读。故事中应包含积极的价值观，如友谊、勇气、好奇心等。")
+                .defaultSystem("你是一个专业的儿童故事生成专家。请根据用户提供的关键词和可选的故事主题，创作一个温馨、有趣、富有教育意义的儿童故事。故事应该简短易懂，语言生动活泼，适合5-10岁的儿童阅读。故事中应包含积极的价值观，如友谊、勇气、好奇心等。如果用户指定了故事主题，请确保故事内容与该主题密切相关。")
                 .defaultAdvisors(new SimpleLoggerAdvisor(),
                         // 添加会话记忆
                         MessageChatMemoryAdvisor.builder(chatMemory).build()) //配置日志Advisor

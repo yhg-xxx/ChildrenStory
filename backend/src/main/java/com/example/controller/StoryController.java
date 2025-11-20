@@ -25,14 +25,18 @@ public class StoryController {
      * 流式生成故事
      * @param keywords 关键词
      * @param chatId 对话id
+     * @param theme 故事主题（可选）
      * @return 流式生成故事
      */
     @GetMapping(value = "/generate/stream", produces = "text/plain;charset=UTF-8")
-    public Flux<String> generateStoryStream(@RequestParam String keywords, @RequestParam String chatId) {
+    public Flux<String> generateStoryStream(
+            @RequestParam String keywords, 
+            @RequestParam String chatId,
+            @RequestParam(required = false) String theme) {
         if (keywords == null || keywords.trim().isEmpty()) {
             return Flux.just("错误：关键词不能为空");
         }
-        return storyService.generateStoryStream(keywords, chatId);
+        return storyService.generateStoryStream(keywords, chatId, theme);
     }
     
     /**

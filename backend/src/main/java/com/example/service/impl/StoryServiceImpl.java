@@ -43,19 +43,29 @@ public class StoryServiceImpl implements StoryService {
      * 流式生成故事
      * @param keywords 故事关键词
      * @param chatId 会话ID
+     * @param theme 故事主题（可选）
      * @return 故事内容的流式输出
      */
     @Override
-    public Flux<String> generateStoryStream(String keywords, String chatId) {
+    public Flux<String> generateStoryStream(String keywords, String chatId, String theme) {
         // 创建提示词，指导AI生成儿童故事
-        String prompt = String.format("""
+        StringBuilder promptBuilder = new StringBuilder();
+        promptBuilder.append(String.format("""
                 请创作一个适合儿童的短故事，包含以下关键词：%s。
+                
                 请按照以下格式返回：
                 【标题】故事的标题
                 【梗概】故事的简要内容概述（100字以内）
                 【正文】完整的故事内容（500-1000字）
-                故事应该积极向上，富有想象力，适合儿童阅读。""", keywords);
-        
+                故事应该积极向上，富有想象力，适合儿童阅读。""", keywords));
+
+        // 如果提供了主题参数，则添加主题要求
+        if (theme != null && !theme.trim().isEmpty()) {
+            promptBuilder.append(String.format("\n\n请确保故事内容与以下主题相关：%s。", theme.trim()));
+        }
+
+        String prompt = promptBuilder.toString();
+
         try {
             // 先生成故事ID，确保可以立即返回给前端
             String storyId = IdGenerator.generateId();
@@ -97,7 +107,7 @@ public class StoryServiceImpl implements StoryService {
             return Flux.just("【故事ID】" + errorStoryId + "\n" + fallbackStory);
         }
     }
-    
+
     /**
      * 将故事保存到数据库
      */

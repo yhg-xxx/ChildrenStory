@@ -14,9 +14,10 @@ public interface StoryService {
      * 流式生成故事
      * @param keywords 故事关键词
      * @param chatId 会话ID
+     * @param theme 故事主题（可选）
      * @return 故事内容的流式输出
      */
-    Flux<String> generateStoryStream(String keywords, String chatId);
+    Flux<String> generateStoryStream(String keywords, String chatId, String theme);
     
     /**
      * 为指定故事生成插图并返回图片URL
