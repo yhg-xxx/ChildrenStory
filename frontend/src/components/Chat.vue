@@ -95,7 +95,7 @@
             >
               🖼️
             </button>
-            
+
             <!-- 图片生成进度条 -->
             <div v-if="showProgressBar" class="progress-bar-container">
               <div class="progress-bar">
@@ -131,7 +131,7 @@
           <button class="theme-settings-btn" @click="showThemeDialog = true" title="故事主题设置">
             ⚙️
           </button>
-          
+
           <!-- 拼音按钮 -->
           <button class="header-action" @click="togglePinyin" :title="showPinyin ? '隐藏拼音' : '显示拼音'">
             🔤
@@ -289,7 +289,7 @@
           <h3>故事主题设置</h3>
           <button class="dialog-close-btn" @click="showThemeDialog = false">×</button>
         </div>
-        
+
         <div class="theme-dialog-content">
           <!-- 主题模式选择 -->
           <div class="theme-mode-section">
@@ -314,15 +314,15 @@
           <div class="theme-selection-section" v-if="themeMode !== 'custom'">
             <h4>选择主题</h4>
             <div class="theme-grid">
-              <div 
-                v-for="theme in availableThemes" 
-                :key="theme.id"
-                class="theme-card"
-                :class="{ 
+              <div
+                  v-for="theme in availableThemes"
+                  :key="theme.id"
+                  class="theme-card"
+                  :class="{
                   'selected': selectedThemes.includes(theme.id),
                   'disabled': themeMode === 'single' && selectedThemes.length > 0 && !selectedThemes.includes(theme.id)
                 }"
-                @click="toggleTheme(theme.id)"
+                  @click="toggleTheme(theme.id)"
               >
                 <div class="theme-icon">{{ getThemeIcon(theme.id) }}</div>
                 <div class="theme-info">
@@ -336,11 +336,11 @@
           <!-- 自定义主题输入 -->
           <div class="custom-theme-section" v-if="themeMode === 'custom'">
             <h4>自定义主题</h4>
-            <textarea 
-              v-model="customTheme" 
-              placeholder="请输入自定义主题，例如：科幻冒险、童话魔法、历史传奇等..."
-              class="custom-theme-input"
-              rows="3"
+            <textarea
+                v-model="customTheme"
+                placeholder="请输入自定义主题，例如：科幻冒险、童话魔法、历史传奇等..."
+                class="custom-theme-input"
+                rows="3"
             ></textarea>
           </div>
 
@@ -407,20 +407,12 @@
 
 /* 响应式调整 */
 @media (max-width: 768px) {
-  .pinyin-char {
-    height: 36px;
-  }
-
   .char {
     font-size: 14px;
   }
 
   .pinyin {
     font-size: 9px;
-  }
-
-  .story-card-title .pinyin-char {
-    height: 42px;
   }
 
   .story-card-title .char {
@@ -480,24 +472,50 @@
 }
 
 
-/* 拼音样式 - 优化为准确显示在汉字正上方 */
+/* 拼音样式 - 使用ruby标签优化拼音显示在汉字正上方 */
 .pinyin-char {
-  position: relative;
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  text-align: center;
+  display: inline-block;
   margin: 0 1px;
   vertical-align: top;
-  height: 42px; /* 保持固定高度确保布局稳定 */
 }
 
+/* ruby标签样式优化 */
+ruby {
+  display: inline-block;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* rt标签默认样式重置 */
+rt {
+  display: ruby-text;
+  font-size: 10px;
+  color: #666;
+  line-height: 1;
+  text-align: center;
+}
+
+/* 汉字样式 */
 .char {
-  display: block;
+  display: inline-block;
+  font-size: 16px;
+}
+
+/* 拼音样式 */
+.pinyin {
+  display: ruby-text;
+  font-size: 10px;
+  color: #666;
+  line-height: 1;
+  text-align: center;
+}
+
+/* 非汉字字符样式 */
+.non-chinese {
+  display: inline-block;
+  vertical-align: bottom;
   font-size: 16px;
   line-height: 1.2;
-  /* 移除固定top值，通过flex布局自然对齐 */
 }
 
 .pinyin {
@@ -645,63 +663,41 @@ export default {
       this.showPinyin = !this.showPinyin;
     },
 
-// 将中文文本转换为带拼音的HTML
+// 将中文文本转换为带拼音的HTML，修复版本兼容性问题
     convertToPinyin(text) {
       if (!text) return '';
 
+      // 直接使用传统方式手动生成ruby标签
       let result = '';
-
+      
       // 遍历文本中的每个字符
       for (let i = 0; i < text.length; i++) {
         const char = text[i];
-
+        
         // 检查是否为中文字符
         if (/[\u4e00-\u9fa5]/.test(char)) {
-          // 使用pinyin-pro获取拼音，保留声调
+          // 使用pinyin-pro获取拼音
           const charPinyin = pinyin(char, {
-            toneType: 'symbol', // 使用数字声调
+            toneType: 'symbol',
             type: 'array'
           })[0] || '';
-
-          // 添加额外的间距控制
-          const width = charPinyin.length > 3 ? '1.5em' : '1em';
           
-          // 为每个字创建拼音span元素
-          result += `<span class="pinyin-char" style="width: ${width};">
-                  <span class="pinyin">${charPinyin}</span>
-                  <span class="char">${char}</span>
-                </span>`;
+          // 生成ruby标签结构
+          result += `<ruby class="pinyin-char">
+                      <span class="char">${char}</span>
+                      <rt class="pinyin">${charPinyin}</rt>
+                    </ruby>`;
         } else {
-          // 非中文字符直接添加
-          result += char;
+          // 非中文字符添加class
+          result += `<span class="non-chinese">${char}</span>`;
         }
       }
+      
+      return result;
+    },
 
-      return result;
-    },
-    
-    // 为中文词添加拼音包装
-    wrapWithPinyin(word) {
-      // 使用pinyin-pro获取拼音，保留声调
-      const pinyinResult = pinyin(word, {
-        toneType: 'mark', // 使用声调符号
-        type: 'array' // 返回数组格式
-      });
-      
-      let result = '';
-      // 为每个字和对应的拼音创建span元素
-      for (let i = 0; i < word.length; i++) {
-        const char = word[i];
-        const charPinyin = pinyinResult[i] || '';
-        result += `<span class="pinyin-char">
-                    <span class="char">${char}</span>
-                    <span class="pinyin">${charPinyin}</span>
-                  </span>`;
-      }
-      
-      return result;
-    },
-    
+
+
     // 获取当前登录用户信息
     async getCurrentUserInfo() {
       try {
@@ -807,8 +803,27 @@ export default {
     // 格式化时间
     formatTime(date) {
       const now = new Date();
-      const target = new Date(date);
-      const diffDays = Math.floor((now - target) / (1000 * 60 * 60 * 24));
+      let target;
+      
+      // 处理yyyy-MM-dd HH:mm:ss格式的时间字符串
+      if (typeof date === 'string' && date.includes(' ')) {
+        const [datePart, timePart] = date.split(' ');
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hour, minute, second] = timePart.split(':').map(Number);
+        target = new Date(year, month - 1, day, hour, minute, second);
+      } else {
+        target = new Date(date);
+      }
+      
+      // 确保日期有效
+      if (isNaN(target.getTime())) {
+        return '未知时间';
+      }
+      
+      // 将时间设置为同一天的相同时间点进行比较
+      const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const targetDate = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+      const diffDays = Math.floor((nowDate - targetDate) / (1000 * 60 * 60 * 24));
 
       if (diffDays === 0) return '今天';
       if (diffDays === 1) return '昨天';
@@ -993,11 +1008,12 @@ export default {
           // 保存故事ID到sessionStorage
           sessionStorage.setItem('currentStoryId', storyId);
         } else {
-          throw new Error(result.message || '获取故事详情失败');
+          // 直接记录错误并显示，不需要抛出异常
+          console.error('获取故事详情失败:', result.message);
         }
       } catch (error) {
         console.error('获取故事详情时出错:', error);
-        throw error;
+        this.showError('获取故事详情失败，请稍后重试');
       }
     },
 
@@ -1026,10 +1042,10 @@ export default {
         this.$router.push('/login');
       }
     }
-,
+    ,
 
     // 主题选择相关方法
-    
+
     // 切换主题选择
     toggleTheme(themeId) {
       if (this.themeMode === 'single') {
@@ -1095,10 +1111,10 @@ export default {
 
       // 保存到localStorage
       this.saveThemesToLocalStorage();
-      
+
       // 关闭弹窗
       this.showThemeDialog = false;
-      
+
       // 显示成功提示
       this.showSuccess('主题设置已保存');
     },
@@ -1194,7 +1210,7 @@ export default {
         const params = new URLSearchParams();
         params.append('keywords', keywords.trim());
         params.append('chatId', this.formData.chatId);
-        
+
         // 添加主题参数
         const themeText = this.getSelectedThemeText();
         if (themeText) {
@@ -1215,12 +1231,18 @@ export default {
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          console.error(`HTTP error! status: ${response.status}`);
+          this.showError(`请求失败，状态码: ${response.status}`);
+          this.isGenerating = false;
+          return;
         }
 
         // 确保响应是流
         if (!response.body) {
-          throw new Error('Response body is not a stream');
+          console.error('Response body is not a stream');
+          this.showError('响应格式错误，无法获取流数据');
+          this.isGenerating = false;
+          return;
         }
 
         // 处理流式响应
@@ -1480,11 +1502,11 @@ export default {
       if (this.progressTimer) {
         clearInterval(this.progressTimer);
       }
-      
+
       // 重置进度条
       this.showProgressBar = true;
       this.progressValue = 0;
-      
+
       // 设置定时器模拟进度增长
       this.progressTimer = setInterval(() => {
         // 每次增加一个随机值（1-5%），但不超过90%
@@ -1494,7 +1516,7 @@ export default {
         }
       }, 300);
     },
-    
+
     // 完成进度条
     completeProgressBar() {
       // 清除定时器
@@ -1502,10 +1524,10 @@ export default {
         clearInterval(this.progressTimer);
         this.progressTimer = null;
       }
-      
+
       // 快速将进度设置为100%
       this.progressValue = 100;
-      
+
       // 延迟隐藏进度条
       setTimeout(() => {
         this.showProgressBar = false;
@@ -1545,7 +1567,11 @@ export default {
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          console.error(`HTTP error! status: ${response.status}`);
+          this.showError(`图片生成请求失败，状态码: ${response.status}`);
+          this.completeProgressBar();
+          this.isLoadingImage = false;
+          return;
         }
 
         const result = await response.json();
@@ -1554,7 +1580,7 @@ export default {
         if (result.success) {
           // 完成进度条
           this.completeProgressBar();
-          
+
           // 直接从响应中获取图片URL
           if (result.data && result.data.imageUrl) {
             // 找到对应的故事消息并更新图片URL
@@ -1567,7 +1593,7 @@ export default {
             ElMessage.success('图片生成成功');
           }
         } else {
-          this.showError(result.message || result.msg || '图片生成失败');
+          this.showError(result.message || result.message || '图片生成失败');
         }
       } catch (error) {
         this.showError('获取图片失败，请稍后重试');
@@ -1618,7 +1644,11 @@ export default {
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          console.error(`HTTP error! status: ${response.status}`);
+          this.showError(`图片重新生成请求失败，状态码: ${response.status}`);
+          this.completeProgressBar();
+          this.isLoadingImage = false;
+          return;
         }
 
         const result = await response.json();
@@ -1627,7 +1657,7 @@ export default {
         if (result.success) {
           // 完成进度条
           this.completeProgressBar();
-          
+
           // 直接从响应中获取图片URL
           if (result.data && result.data.imageUrl) {
             // 找到对应的故事消息并更新图片URL
@@ -1640,7 +1670,7 @@ export default {
             ElMessage.success('图片重新生成成功');
           }
         } else {
-          this.showError(result.message || result.msg || '图片重新生成失败');
+          this.showError(result.message || '图片重新生成失败');
         }
       } catch (error) {
         this.showError('重新生成图片失败，请稍后重试');
@@ -1740,12 +1770,18 @@ export default {
             });
 
             if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
+              console.error(`HTTP error! status: ${response.status}`);
+              this.showError(`音频生成请求失败，状态码: ${response.status}`);
+              this.isLoadingAudio = false;
+              return;
             }
 
             // 确保响应是流
             if (!response.body) {
-              throw new Error('Response body is not a stream');
+              console.error('Response body is not a stream');
+              this.showError('音频响应格式错误，无法获取流数据');
+              this.isLoadingAudio = false;
+              return;
             }
 
             // 处理流式响应
@@ -1878,15 +1914,6 @@ export default {
       this.timer = setTimeout(() => {
         this.errorMessage = '';
       }, 3000);
-    },
-
-    // 清除错误信息
-    clearError() {
-      this.errorMessage = '';
-      if (this.timer) {
-        clearTimeout(this.timer);
-        this.timer = null;
-      }
     },
 
     // 修改：删除故事方法 - 优化滚动位置保持
@@ -3354,24 +3381,24 @@ export default {
     width: 95%;
     margin: 20px;
   }
-  
+
   .theme-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .mode-options {
     flex-direction: column;
     gap: 8px;
   }
-  
+
   .theme-dialog-content {
     padding: 16px;
   }
-  
+
   .theme-dialog-header {
     padding: 16px 20px;
   }
-  
+
   .theme-dialog-footer {
     padding: 16px 20px;
   }
